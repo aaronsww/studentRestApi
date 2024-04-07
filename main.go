@@ -22,8 +22,20 @@ func getStudents(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, students)
 }
 
+func createStudent(c *gin.Context) {
+	var newStudent student
+
+	if err := c.BindJSON(&newStudent); err != nil {
+		return
+	}
+
+	students = append(students, newStudent)
+	c.IndentedJSON(http.StatusCreated, newStudent)
+}
+
 func main() {
 	router := gin.Default()
 	router.GET("/students", getStudents)
+	router.POST("/students", createStudent)
 	router.Run("localhost:8080")
 }
