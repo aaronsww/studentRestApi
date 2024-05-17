@@ -30,13 +30,32 @@ type student struct {
 	Name string `json:"name"`
 }
 
-var students = []student{
-	{ID: "1", Name: "Jeevan"},
-	{ID: "2", Name: "Aaron"},
-	{ID: "3", Name: "Joseph"},
-}
+func getStudents(c *gin.Context, db *sql.DB) {
+	// c.IndentedJSON(http.StatusOK, students)
+	// Query all students from the database
+	rows, err := db.Query("SELECT id, name FROM students")
+	if err != nil {
+		c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	defer rows.Close()
 
-func getStudents(c *gin.Context) {
+	var students []student
+	for rows.Next() {
+		var s student
+		err := rows.Scan(&s.ID, &s.Name)
+		if err != nil {
+			c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		students = append(students, s)
+	}
+
+	if err := rows.Err(); err != nil {
+		c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
 	c.IndentedJSON(http.StatusOK, students)
 }
 
@@ -105,9 +124,11 @@ func main() {
 	fmt.Println("Successfully connected!")
 
 	router := gin.Default()
-	router.GET("/students", getStudents)
+	router.GET("/students", func(c *gin.Context) {
+		getStudents(c, db)
+	})
 	router.GET("/students/:id", studentById)
-	router.POST("/students", func(c *gin.Context) {
+	router.POST("/addStudent", func(c *gin.Context) {
 		createStudent(c, db)
 	})
 	router.Run("localhost:8080")
