@@ -59,9 +59,9 @@ func getStudents(c *gin.Context, db *sql.DB) {
 	c.IndentedJSON(http.StatusOK, students)
 }
 
-func studentById(c *gin.Context) {
+func studentById(c *gin.Context, db *sql.DB) {
 	id := c.Param("id")
-	student, err := getStudentById(id)
+	student, err := getStudentById(id, db)
 
 	if err != nil {
 		c.IndentedJSON(http.StatusNotFound, gin.H{"message": "Student not found."})
@@ -71,14 +71,19 @@ func studentById(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, student)
 }
 
-func getStudentById(id string) (*student, error) {
-	for i, s := range students {
-		if s.ID == id {
-			return &students[i], nil
+func getStudentById(id string, db *sql.DB) (*student, error) {
+	row := db.QueryRow("SELECT id, name FROM students WHERE id = $1", id)
+
+	var s student
+	err := row.Scan(&s.ID, &s.Name)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, errors.New("student not found")
 		}
+		return nil, err
 	}
 
-	return nil, errors.New("student not found")
+	return &s, nil
 }
 
 func createStudent(c *gin.Context, db *sql.DB) {
@@ -127,7 +132,9 @@ func main() {
 	router.GET("/students", func(c *gin.Context) {
 		getStudents(c, db)
 	})
-	router.GET("/students/:id", studentById)
+	router.GET("/students/:id", func(c *gin.Context) {
+		studentById(c, db)
+	})
 	router.POST("/addStudent", func(c *gin.Context) {
 		createStudent(c, db)
 	})
